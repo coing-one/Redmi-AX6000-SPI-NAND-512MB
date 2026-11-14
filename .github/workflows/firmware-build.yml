@@ -5,8 +5,8 @@ on:
   workflow_dispatch:
 
 env:
-  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
-  REPO_BRANCH: "2410"
+  REPO_URL: https://github.com/chasey-dev/immortalwrt-mt798x-rebase
+  REPO_BRANCH: "25.12"
   CONFIG_FILE: firmware_build/ax6000-stock.config
   DIY_SH: firmware_build/diy.sh
   TZ: Asia/Shanghai
@@ -29,7 +29,7 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           sudo -E apt-get -qq update
-          sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool lrzsz mkisofs msmtp ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+          sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool clang llvm libbpf-dev libclang-dev lrzsz mkisofs msmtp ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
           sudo timedatectl set-timezone "$TZ"
@@ -64,6 +64,54 @@ jobs:
           cd openwrt
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+
+      - name: 检出 honk 源码到 daeuniverse 源
+        uses: actions/checkout@v4
+        with:
+          repository: daeuniverse/honk
+          ref: v0.1.0-beta.6
+          fetch-depth: 0
+          path: honk-src
+
+      - name: 装入 honk 源码、预置配置与路由器侧 daeuniverse 软件源
+        run: |
+          mkdir -p openwrt/feeds/daeuniverse/honk/src
+          cp -a honk-src/. openwrt/feeds/daeuniverse/honk/src/
+          cp $GITHUB_WORKSPACE/firmware_build/honk/config.dae openwrt/feeds/daeuniverse/honk/files/config.dae
+          mkdir -p openwrt/package/base-files/files/etc/apk/keys openwrt/package/base-files/files/etc/apk/repositories.d
+          cp openwrt/feeds/daeuniverse/keys/public-key.pem openwrt/package/base-files/files/etc/apk/keys/daeuniverse.pem
+          cat > openwrt/package/base-files/files/etc/apk/repositories.d/daeuniverse.list << 'EOF'
+          @daeuniverse https://openwrt.daeuniverse.org/25.12/packages/aarch64_cortex-a53/packages.adb
+          EOF
+
+      - name: 读取 honk 钉版 Rust 工具链版本
+        id: honk_toolchain
+        working-directory: honk-src
+        run: |
+          echo "stable=$(grep -oP '^channel\s*=\s*\"\K[^\"]+' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+          echo "ebpf=$(grep -oP '^channel\s*=\s*\"\K[^\"]+' crates/honk-ebpf/rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
+      - name: 安装 Rust 稳定工具链（honk 主程序）
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ steps.honk_toolchain.outputs.stable }}
+          target: aarch64-unknown-linux-musl
+
+      - name: 安装 Rust nightly 工具链（honk eBPF 对象）
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ steps.honk_toolchain.outputs.ebpf }}
+          components: rust-src, llvm-tools
+
+      - name: 安装钉版 bpf-linker
+        working-directory: honk-src
+        run: |
+          source .github/ci/pins.env
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/bpf-linker.tar.zst" \
+            "https://github.com/aya-rs/bpf-linker/releases/download/v$BPF_LINKER_VERSION/bpf-linker-x86_64-unknown-linux-musl.tar.zst"
+          echo "$BPF_LINKER_SHA256  $RUNNER_TEMP/bpf-linker.tar.zst" | sha256sum -c -
+          zstd -dc "$RUNNER_TEMP/bpf-linker.tar.zst" | tar -xf - -C "${CARGO_HOME:-$HOME/.cargo}/bin"
+          bpf-linker --version
 
       - name: 修复 rust host 构建（保留 vendor/*.orig）
         run: |
@@ -114,7 +162,7 @@ jobs:
         with:
           tag_name: firmware-${{ github.run_number }}
           name: 红米AX6000固件 #${{ github.run_number }}
-          body: 红米AX6000 512MB闪存版固件（stock 布局，闭源 WiFi 驱动，ImmortalWrt 24.10）
+          body: 红米AX6000 512MB闪存版固件（stock 布局，闭源 WiFi 驱动，ImmortalWrt 25.12 / 内核 6.12）
           files: ${{ env.FIRMWARE }}/*
 
       - name: 清理旧的 workflow 记录
