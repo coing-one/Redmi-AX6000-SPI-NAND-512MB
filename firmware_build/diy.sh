@@ -9,7 +9,6 @@ sed -i 's/reg = <0x2400000 0x5000000>/reg = <0x2400000 0x1dc00000>/' "$DTS"
 grep -q 'reg = <0x2400000 0x1dc00000>' "$DTS" || { echo "ERROR: ubi 分区扩容未生效，停工检查 DTS"; exit 1; }
 
 # 追加软件源（代理类 + honk/dae 的 daeuniverse 源，仓库根目录即 OpenWrt feed）
-echo 'src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2' >> feeds.conf.default
 echo 'src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki' >> feeds.conf.default
 echo 'src-git daeuniverse https://github.com/daeuniverse/openwrt-packages' >> feeds.conf.default
 
