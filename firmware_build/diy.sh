@@ -11,6 +11,7 @@ grep -q 'reg = <0x2400000 0x1dc00000>' "$DTS" || { echo "ERROR: ubi 分区扩容
 # 追加软件源（代理类 + honk/dae 的 daeuniverse 源，仓库根目录即 OpenWrt feed）
 echo 'src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki' >> feeds.conf.default
 echo 'src-git daeuniverse https://github.com/daeuniverse/openwrt-packages' >> feeds.conf.default
+echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
 
 # 主题（clone 进 package 编译）：Proton2025（默认）+ Vantage + 7Dollar + Carbon + Mono
 git clone --depth 1 https://github.com/ChesterGoodiny/luci-theme-proton2025 package/luci-theme-proton2025
@@ -44,7 +45,13 @@ cat > package/base-files/files/etc/uci-defaults/99-custom-distfeeds << 'EOF'
 #!/bin/sh
 CFG=/etc/apk/repositories.d/distfeeds.list
 [ -f "$CFG" ] || exit 0
-sed -i 's#https://downloads.immortalwrt.org#https://mirrors.ustc.edu.cn/immortalwrt#g' "$CFG"
+# 三个国内源（中科大/清华/上海交大），apk 按文件顺序取源：默认走最快的中科大，失败自动落下一源
+cp "$CFG" /tmp/distfeeds.orig
+: > "$CFG"
+for M in mirrors.ustc.edu.cn/immortalwrt mirrors.tuna.tsinghua.edu.cn/immortalwrt mirror.sjtu.edu.cn/immortalwrt; do
+	sed "s#https://downloads.immortalwrt.org#https://$M#g" /tmp/distfeeds.orig >> "$CFG"
+done
+rm -f /tmp/distfeeds.orig
 exit 0
 EOF
 chmod +x package/base-files/files/etc/uci-defaults/99-custom-distfeeds
