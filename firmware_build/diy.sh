@@ -1,43 +1,41 @@
 #!/bin/bash
 # 红米AX6000 自定义修改（feeds 更新之前执行）
+# 底子：ImmortalWrt 25.12（主线式 mediatek/filogic 目标、内核 6.12、apk 包管理）
 
-# stock 布局：把 ubi 分区从原厂 110MB 扩到 474MB，适配 512MB 闪存颗粒
-sed -i 's/reg = <0x600000 0x6e00000>/reg = <0x600000 0x1da00000>/' \
-  target/linux/mediatek/files-5.4/arch/arm64/boot/dts/mediatek/mt7986a-xiaomi-redmi-router-ax6000.dts
+# stock 布局：512MB 闪存颗粒下把 ubi 分区从 80MB 扩到 476MB（0x2400000 起至闪存末尾 0x20000000）
+# 新底子分区为 ubi_kernel(30MB) + ubi 两段式，与旧底子的单段 ubi 不同，只扩 ubi 段
+DTS=target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-stock.dts
+sed -i 's/reg = <0x2400000 0x5000000>/reg = <0x2400000 0x1dc00000>/' "$DTS"
+grep -q 'reg = <0x2400000 0x1dc00000>' "$DTS" || { echo "ERROR: ubi 分区扩容未生效，停工检查 DTS"; exit 1; }
 
-# 追加软件源（代理类）
+# 追加软件源（代理类 + honk/dae 的 daeuniverse 源，仓库根目录即 OpenWrt feed）
 echo 'src-git passwall2 https://github.com/Openwrt-Passwall/openwrt-passwall2' >> feeds.conf.default
 echo 'src-git nikki https://github.com/nikkinikki-org/OpenWrt-nikki' >> feeds.conf.default
+echo 'src-git daeuniverse https://github.com/daeuniverse/openwrt-packages' >> feeds.conf.default
 
-# 主题：Proton2025（当前正在用的主题，clone 进 package 编译）
+# 主题（clone 进 package 编译）：Proton2025（默认）+ Vantage + 7Dollar + Carbon + Mono
 git clone --depth 1 https://github.com/ChesterGoodiny/luci-theme-proton2025 package/luci-theme-proton2025
+git clone --depth 1 https://github.com/itsmaiGe/luci-theme-7dollar package/luci-theme-7dollar
+git clone --depth 1 https://github.com/mrjoechen/luci-theme-carbon package/luci-theme-carbon
+git clone --depth 1 https://github.com/wizcheu/luci-theme-mono package/luci-theme-mono
+# Vantage 是多包仓库（主题与仪表盘应用在子目录），整仓 clone 后把两个包搬进 package/
+git clone --depth 1 https://github.com/anothaDev/luci-theme-vantage vantage-src
+mv vantage-src/luci-theme-vantage package/luci-theme-vantage
+mv vantage-src/luci-app-vantage package/luci-app-vantage
+rm -rf vantage-src
 
-# 刷机后内置 opkg 软件源：国内 USTC 主源 + 官方源补充
-# 首次启动时自动重写 /etc/opkg/distfeeds.conf
+# 刷机后内置 apk 软件源换国内 USTC 镜像（25.12 起包管理是 apk，源文件为 /etc/apk/repositories.d/distfeeds.list）
+# daeuniverse 源的公钥与列表由 workflow 在 feeds 更新后另行装入 base-files（见 firmware-build.yml）
 cat > package/base-files/files/etc/uci-defaults/99-custom-distfeeds << 'EOF'
 #!/bin/sh
-# 将 opkg 源替换为：国内中科大 USTC 主源 + ImmortalWrt 官方源补充
-CFG=/etc/opkg/distfeeds.conf
+CFG=/etc/apk/repositories.d/distfeeds.list
 [ -f "$CFG" ] || exit 0
 sed -i 's#https://downloads.immortalwrt.org#https://mirrors.ustc.edu.cn/immortalwrt#g' "$CFG"
-sed -i 's#https://mirrors.vsean.net/openwrt#https://mirrors.ustc.edu.cn/immortalwrt#g' "$CFG"
-# 追加官方源作为补充（避免与主源完全重复：主源已替换成 USTC）
-cat >> "$CFG" << 'FEOF'
-
-# 补充源：ImmortalWrt 官方（国内源缺失时自动 fallback）
-src/gz immortalwrt_core_off https://downloads.immortalwrt.org/releases/24.10.0/targets/mediatek/filogic/packages
-src/gz immortalwrt_base_off https://downloads.immortalwrt.org/releases/24.10.0/packages/aarch64_cortex-a53/base
-src/gz immortalwrt_luci_off https://downloads.immortalwrt.org/releases/24.10.0/packages/aarch64_cortex-a53/luci
-src/gz immortalwrt_packages_off https://downloads.immortalwrt.org/releases/24.10.0/packages/aarch64_cortex-a53/packages
-src/gz immortalwrt_routing_off https://downloads.immortalwrt.org/releases/24.10.0/packages/aarch64_cortex-a53/routing
-src/gz immortalwrt_telephony_off https://downloads.immortalwrt.org/releases/24.10.0/packages/aarch64_cortex-a53/telephony
-FEOF
 exit 0
 EOF
 chmod +x package/base-files/files/etc/uci-defaults/99-custom-distfeeds
-# SmartDNS + Nikki 开箱：DNS 分流 / IPv4+IPv6 双栈 / 低延迟（首次启动执行）
-# 数据链路：LAN客户端 -> dnsmasq(:53) -> SmartDNS(:5353) -> 国内组(并发测速取最快) / 国外组(-> Mihomo :1053 fake-ip，0ms)
-# 流量链路：Mihomo 透明代理（TCP redirect + UDP TUN），GEOSITE/GEOIP 国内直连，其余按订阅规则走代理
+
+# SmartDNS + Nikki 开箱配置（现行定格）
 cat > package/base-files/files/etc/uci-defaults/97-smartdns-nikki << 'EOF'
 #!/bin/sh
 # 97-smartdns-nikki：SmartDNS + Nikki 开箱配置
