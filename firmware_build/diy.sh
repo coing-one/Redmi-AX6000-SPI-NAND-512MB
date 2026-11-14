@@ -24,6 +24,13 @@ mv vantage-src/luci-theme-vantage package/luci-theme-vantage
 mv vantage-src/luci-app-vantage package/luci-app-vantage
 rm -rf vantage-src
 
+# 默认主题：Vantage（首启 uci-defaults 生效）
+cat > package/base-files/files/etc/uci-defaults/96-default-theme << 'EOF'
+#!/bin/sh
+uci set luci.main.mediaurlbase='/luci-static/vantage'
+uci commit luci
+EOF
+
 # 默认后台地址：LAN 改 1.2.3.4/24（首启 uci-defaults 生效，DHCP 池自动跟随网段）
 cat > package/base-files/files/etc/uci-defaults/98-lan-ip << 'EOF'
 #!/bin/sh
