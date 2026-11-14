@@ -18,29 +18,31 @@
 
 | 特性 | 说明 |
 |---|---|
+| 底子 | ImmortalWrt 25.12（内核 6.12、apk 包管理），MTK 官方 feeds 闭源驱动 |
 | 闭源 WiFi 驱动 | MTK mt_wifi，信号与性能优于开源驱动 |
-| stock 分区布局 | 不换 bootloader，sysupgrade 直刷 |
-| ubi 扩容 | 110MB → 474MB，512MB 颗粒容量全部用上 |
+| stock 分区布局 | ubi_kernel + ubi 两段式，不换 bootloader |
+| ubi 扩容 | 80MB → 476MB，512MB 颗粒容量全部用上 |
 | 云编译 | Actions 上一键编译，不占本地资源 |
-| 自动跟进 | 每周一检查上游 2410 分支，有更新才触发编译 |
+| 自动跟进 | 每周一检查上游 25.12 分支，有更新才触发编译 |
 
 ## 🚀 快速开始
 
 1. **Fork** 本仓库到你的 GitHub 账号
 2. 进入 **Actions** → 选择「**编译红米AX6000固件**」→ **Run workflow**
-3. 等待编译完成（通常 30–60 分钟，取决于包数量与 runner 状态）
+3. 等待编译完成（通常 1–2 小时，取决于包数量与 runner 状态）
 4. 从 **Release**（`firmware-*` 标签）或 **Artifacts**（`redmi-ax6000-512m-firmware`）下载固件
-5. 路由器后台 → 系统升级 → 上传固件 **sysupgrade** 刷入
+5. 刷入：**从旧 24.10 固件升级必须走 U-Boot 按新布局刷入**（分区布局已变，不能 sysupgrade 保留配置）；同为本 25.12 线的后续版本可直接 sysupgrade
 
 > 刷机有风险，动手前请先备份原厂固件。
 
 ## 🧩 内置功能
 
 - **性能与无线**：TurboACC MTK 硬件加速、EQoS 限速、mtwifi-cfg 无线管理
-- **DNS 与去广告**：AdGuard Home、SmartDNS
+- **DNS**：SmartDNS（国内/国外分流、双栈、低延迟开箱配置）
+- **代理**：Nikki（Mihomo）、PassWall2
 - **远程管理**：Lucky、ddns-go 内网穿透 / DDNS
-- **运维监控**：wrtbwmon 流量统计、CPU / RAM 状态、ttyd 网页终端、应用过滤、微信推送
-- **主题**：Proton2025（默认）+ Argon
+- **运维监控**：wrtbwmon 流量统计、CPU / RAM 状态、ttyd 网页终端、应用过滤
+- **主题（6 套）**：Proton2025（默认）、Argon、[Vantage](https://github.com/anothaDev/luci-theme-vantage)、[7Dollar](https://github.com/itsmaiGe/luci-theme-7dollar)、[Carbon](https://github.com/mrjoechen/luci-theme-carbon)、[Mono](https://github.com/wizcheu/luci-theme-mono)
 
 软件包在 [`firmware_build/ax6000-stock.config`](firmware_build/ax6000-stock.config) 中按需增减。
 
@@ -53,12 +55,13 @@
 ├── atf_uboot_build/             # 512MB 闪存 BL2/FIP 补丁（救砖用）
 └── firmware_build/
     ├── ax6000-stock.config      # 编译配置（设备、驱动、软件包）
-    └── diy.sh                   # 编译前自定义（分区扩容、软件源、主题）
+    ├── diy.sh                   # 编译前自定义（分区扩容、软件源、主题）
+    └── fix-rust-orig.py         # rust host 构建修复脚本
 ```
 
 ## 🔄 自动更新
 
-`update-checker.yml` 每周一 00:00（北京时间）检查上游 `2410` 分支：有新提交才触发编译，没有则跳过，不浪费 Actions 配额。关闭方式：注释或删除该工作流。
+`update-checker.yml` 每周一 00:00（北京时间）检查上游 25.12 分支：有新提交才触发编译，没有则跳过，不浪费 Actions 配额。关闭方式：注释或删除该工作流。
 
 ## 🧱 救砖
 
@@ -66,9 +69,9 @@ bootloader 未改动，串口连上后用 [`atf_uboot_build/`](atf_uboot_build) 
 
 ## 🙏 致谢
 
-- [immortalwrt-mt798x-6.6](https://github.com/padavanonly/immortalwrt-mt798x-6.6) — padavanonly 的 mt798x 源码（本仓库基于其 2410 分支）
+- [immortalwrt-mt798x-rebase](https://github.com/chasey-dev/immortalwrt-mt798x-rebase) — chasey-dev 将 ImmortalWrt 25.12 与 MTK 官方 feeds 合并的源码（本仓库基于其 25.12 分支）
 - [ImmortalWrt](https://github.com/immortalwrt/immortalwrt) — OpenWrt 分支
-- [luci-theme-proton2025](https://github.com/ChesterGoodiny/luci-theme-proton2025) — LuCI 主题
+- [luci-theme-proton2025](https://github.com/ChesterGoodiny/luci-theme-proton2025)、[luci-theme-vantage](https://github.com/anothaDev/luci-theme-vantage)、[luci-theme-7dollar](https://github.com/itsmaiGe/luci-theme-7dollar)、[luci-theme-carbon](https://github.com/mrjoechen/luci-theme-carbon)、[luci-theme-mono](https://github.com/wizcheu/luci-theme-mono) — LuCI 主题
 
 ## ⚖️ 许可
 
