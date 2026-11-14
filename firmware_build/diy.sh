@@ -24,6 +24,14 @@ mv vantage-src/luci-theme-vantage package/luci-theme-vantage
 mv vantage-src/luci-app-vantage package/luci-app-vantage
 rm -rf vantage-src
 
+# 默认后台地址：LAN 改 1.2.3.4/24（首启 uci-defaults 生效，DHCP 池自动跟随网段）
+cat > package/base-files/files/etc/uci-defaults/98-lan-ip << 'EOF'
+#!/bin/sh
+uci set network.lan.ipaddr='1.2.3.4'
+uci set network.lan.netmask='255.255.255.0'
+uci commit network
+EOF
+
 # 刷机后内置 apk 软件源换国内 USTC 镜像（25.12 起包管理是 apk，源文件为 /etc/apk/repositories.d/distfeeds.list）
 # daeuniverse 源的公钥与列表由 workflow 在 feeds 更新后另行装入 base-files（见 firmware-build.yml）
 cat > package/base-files/files/etc/uci-defaults/99-custom-distfeeds << 'EOF'
