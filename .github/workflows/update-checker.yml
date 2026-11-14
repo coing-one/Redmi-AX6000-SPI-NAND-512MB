@@ -1,8 +1,8 @@
 name: 检查上游更新
 
 env:
-  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
-  REPO_BRANCH: "2410"
+  REPO_URL: https://github.com/chasey-dev/immortalwrt-mt798x-rebase
+  REPO_BRANCH: "25.12"
 
 on:
   workflow_dispatch:
