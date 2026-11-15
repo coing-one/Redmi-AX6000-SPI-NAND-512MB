@@ -20,10 +20,9 @@
 |---|---|
 | 底子 | ImmortalWrt 25.12（内核 6.12、apk 包管理），MTK 官方 feeds 闭源驱动 |
 | 闭源 WiFi 驱动 | MTK mt_wifi，信号与性能优于开源驱动 |
-| stock 分区布局 | ubi_kernel + ubi 两段式，不换 bootloader |
-| ubi 扩容 | 80MB → 476MB，512MB 颗粒容量全部用上 |
-| 云编译 | Actions 上一键编译，不占本地资源 |
-| 自动跟进 | 每周一检查上游 25.12 分支，有更新才触发编译 |
+| stock 分区布局 | ubi_kernel + ubi 两段式，不换 bootloader；ubi 80MB → 476MB，512MB 颗粒全部用上 |
+| 开箱预置 | Vantage 默认主题、后台 1.2.3.4、SmartDNS 与 Nikki 已调好，刷完即用 |
+| 云编译 | Actions 一键编译，每周一自动检查上游，有更新才编 |
 
 ## 🚀 快速开始
 
@@ -38,11 +37,12 @@
 ## 🧩 内置功能
 
 - **性能与无线**：TurboACC MTK 硬件加速、EQoS 限速、mtwifi-cfg 无线管理
-- **DNS**：SmartDNS（国内/国外分流、双栈、低延迟开箱配置）
-- **代理**：Nikki（Mihomo）、PassWall2
-- **远程管理**：Lucky、ddns-go 内网穿透 / DDNS
-- **运维监控**：wrtbwmon 流量统计、CPU / RAM 状态、ttyd 网页终端、应用过滤
-- **主题（6 套）**：Proton2025（默认）、Argon、[Vantage](https://github.com/anothaDev/luci-theme-vantage)、[7Dollar](https://github.com/itsmaiGe/luci-theme-7dollar)、[Carbon](https://github.com/mrjoechen/luci-theme-carbon)、[Mono](https://github.com/wizcheu/luci-theme-mono)
+- **DNS**：SmartDNS（国内/国外分流、双栈优选、大缓存，低延迟开箱配置）
+- **代理**：Nikki（Mihomo）
+- **远程管理**：Lucky（DDNS / 内网穿透）、Cloudflared 隧道
+- **文件与商店**：FileBrowser 文件管理、iStore 应用商店
+- **运维监控**：ttyd 网页终端、应用过滤、UPnP
+- **主题（6 套）**：[Vantage](https://github.com/anothaDev/luci-theme-vantage)（默认）、Proton2025、Argon、[7Dollar](https://github.com/itsmaiGe/luci-theme-7dollar)、[Carbon](https://github.com/mrjoechen/luci-theme-carbon)、[Mono](https://github.com/wizcheu/luci-theme-mono)
 
 软件包在 [`firmware_build/ax6000-stock.config`](firmware_build/ax6000-stock.config) 中按需增减。
 
