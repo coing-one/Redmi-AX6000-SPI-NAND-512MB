@@ -1,4 +1,4 @@
-# 红米 AX6000 · 512MB 闪存版固件
+# Redmi AX6000 · 512MB ImmortalWrt固件
 
 [![编译状态](https://github.com/realfshaw-crypto/Redmi-AX6000-SPI-NAND-512MB/actions/workflows/firmware-build.yml/badge.svg)](https://github.com/realfshaw-crypto/Redmi-AX6000-SPI-NAND-512MB/actions/workflows/firmware-build.yml)
 [![最新版本](https://img.shields.io/github/v/release/realfshaw-crypto/Redmi-AX6000-SPI-NAND-512MB?include_prereleases)](https://github.com/realfshaw-crypto/Redmi-AX6000-SPI-NAND-512MB/releases)
