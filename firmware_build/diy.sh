@@ -32,6 +32,13 @@ uci commit luci
 EOF
 
 # 默认后台地址：LAN 改 1.2.3.4/24（首启 uci-defaults 生效，DHCP 池自动跟随网段）；主机名设 ax6000（ax6000.lan / 配 umdns 的 ax6000.local 均可达）
+# 预置 root 密码（LuCI 后台与 SSH 共用同一个 root 密码；用户明知仓库公开、自行接受风险）
+cat > package/base-files/files/etc/uci-defaults/95-root-password << 'XEOF'
+#!/bin/sh
+sed -i 's|^root:[^:]*:|root:$6$mg0xovHjaWJ2g.Eu$j7HEKD8IcJ.sVyDMaEFo5pqFzkt9D1wpA9.dzXM3FFaHdC5iPn19GVkpcImCVLUzqau.PqhjV5HWD3bSBZlhD1:|' /etc/shadow
+exit 0
+XEOF
+
 cat > package/base-files/files/etc/uci-defaults/98-lan-ip << 'EOF'
 #!/bin/sh
 uci set network.lan.ipaddr='1.2.3.4'
