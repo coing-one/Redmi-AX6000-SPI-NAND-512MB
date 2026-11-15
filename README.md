@@ -1,8 +1,8 @@
 # Redmi AX6000 · 512MB ImmortalWrt固件
 
-[![编译状态](https://github.com/realfshaw-crypto/Redmi-AX6000-SPI-NAND-512MB/actions/workflows/firmware-build.yml/badge.svg)](https://github.com/realfshaw-crypto/Redmi-AX6000-SPI-NAND-512MB/actions/workflows/firmware-build.yml)
-[![最新版本](https://img.shields.io/github/v/release/realfshaw-crypto/Redmi-AX6000-SPI-NAND-512MB?include_prereleases)](https://github.com/realfshaw-crypto/Redmi-AX6000-SPI-NAND-512MB/releases)
-[![GitHub Stars](https://img.shields.io/github/stars/realfshaw-crypto/Redmi-AX6000-SPI-NAND-512MB?style=social)](https://github.com/realfshaw-crypto/Redmi-AX6000-SPI-NAND-512MB)
+[![编译状态](https://github.com/coing-one/Redmi-AX6000-SPI-NAND-512MB/actions/workflows/firmware-build.yml/badge.svg)](https://github.com/coing-one/Redmi-AX6000-SPI-NAND-512MB/actions/workflows/firmware-build.yml)
+[![最新版本](https://img.shields.io/github/v/release/coing-one/Redmi-AX6000-SPI-NAND-512MB?include_prereleases)](https://github.com/coing-one/Redmi-AX6000-SPI-NAND-512MB/releases)
+[![GitHub Stars](https://img.shields.io/github/stars/coing-one/Redmi-AX6000-SPI-NAND-512MB?style=social)](https://github.com/coing-one/Redmi-AX6000-SPI-NAND-512MB)
 
 > 红米 AX6000（RB06）更换 512MB SPI NAND 后的 ImmortalWrt 固件，GitHub Actions 云编译，Fork 即用，每周自动跟进上游。
 
