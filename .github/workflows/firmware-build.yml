@@ -124,6 +124,14 @@ jobs:
           cd openwrt
           make defconfig
 
+      - name: 校验解析结果（机型与关键包）
+        run: |
+          cd openwrt
+          grep -q '^CONFIG_TARGET_PROFILE="DEVICE_xiaomi_redmi-router-ax6000-stock"$' .config || { echo 'ERROR: 机型解析错误，停工'; exit 1; }
+          for p in honk luci-app-honk luci-app-nikki luci-app-smartdns luci-app-mtwifi-cfg luci-app-store luci-theme-mono luci-app-lucky luci-theme-vantage; do
+            grep -q "^CONFIG_PACKAGE_${p}=y$" .config || { echo "ERROR: 关键包缺失 $p，停工"; exit 1; }
+          done
+
       - name: 下载软件包
         run: |
           cd openwrt
