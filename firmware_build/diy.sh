@@ -32,6 +32,54 @@ uci commit luci
 EOF
 
 # 默认后台地址：LAN 改 1.2.3.4/24（首启 uci-defaults 生效，DHCP 池自动跟随网段）；主机名设 ax6000（ax6000.lan / 配 umdns 的 ax6000.local 均可达）
+# 预置无线配置（照用户现行机同驱动配置原样落盘：5G 名 G + 密码已定，2.4G 保持关闭）
+mkdir -p package/base-files/files/etc/config
+cat > package/base-files/files/etc/config/wireless << 'XEOF'
+config wifi-device 'MT7986_1_1'
+	option type 'mtwifi'
+	option phy 'ra0'
+	option hwmode '11g'
+	option band '2g'
+	option dbdc_main '1'
+	option channel 'auto'
+	option txpower '100'
+	option htmode 'HE40'
+	option country 'CN'
+	option mu_beamformer '1'
+	option noscan '1'
+	option serialize '1'
+	option disabled '1'
+
+config wifi-iface 'default_MT7986_1_1'
+	option device 'MT7986_1_1'
+	option network 'lan'
+	option mode 'ap'
+	option ssid 'ImmortalWrt-2.4G'
+	option encryption 'none'
+	option disabled '1'
+
+config wifi-device 'MT7986_1_2'
+	option type 'mtwifi'
+	option phy 'rax0'
+	option hwmode '11a'
+	option band '5g'
+	option dbdc_main '0'
+	option channel 'auto'
+	option txpower '100'
+	option htmode 'HE80'
+	option country 'CN'
+	option mu_beamformer '1'
+	option serialize '1'
+
+config wifi-iface 'default_MT7986_1_2'
+	option device 'MT7986_1_2'
+	option network 'lan'
+	option mode 'ap'
+	option ssid 'G'
+	option encryption 'psk-mixed'
+	option key '11112222'
+XEOF
+
 # 预置 root 密码（LuCI 后台与 SSH 共用同一个 root 密码；用户明知仓库公开、自行接受风险）
 cat > package/base-files/files/etc/uci-defaults/95-root-password << 'XEOF'
 #!/bin/sh
