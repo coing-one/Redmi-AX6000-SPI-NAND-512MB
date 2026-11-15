@@ -18,11 +18,19 @@ git clone --depth 1 https://github.com/ChesterGoodiny/luci-theme-proton2025 pack
 git clone --depth 1 https://github.com/itsmaiGe/luci-theme-7dollar package/luci-theme-7dollar
 git clone --depth 1 https://github.com/mrjoechen/luci-theme-carbon package/luci-theme-carbon
 git clone --depth 1 https://github.com/wizcheu/luci-theme-mono package/luci-theme-mono
+# Mono 的 Makefile 缺 BuildPackage 签名行，包扫描扫不到它，补上签名注释（上游惯例写法）
+printf '\n# call BuildPackage - OpenWrt buildroot signature\n' >> package/luci-theme-mono/Makefile
 # Vantage 是多包仓库（主题与仪表盘应用在子目录），整仓 clone 后把两个包搬进 package/
 git clone --depth 1 https://github.com/anothaDev/luci-theme-vantage vantage-src
 mv vantage-src/luci-theme-vantage package/luci-theme-vantage
 mv vantage-src/luci-app-vantage package/luci-app-vantage
 rm -rf vantage-src
+
+# Lucky（DDNS 等）：25.12 的 feeds 里已无此包，从作者仓库引入（应用与守护进程两个包）
+git clone --depth 1 https://github.com/gdy666/luci-app-lucky lucky-src
+mv lucky-src/luci-app-lucky package/luci-app-lucky
+mv lucky-src/lucky package/lucky
+rm -rf lucky-src
 
 # 默认主题：Vantage（首启 uci-defaults 生效）
 cat > package/base-files/files/etc/uci-defaults/96-default-theme << 'EOF'
