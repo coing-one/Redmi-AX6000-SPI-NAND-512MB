@@ -38,7 +38,7 @@
 
 - **性能与无线**：TurboACC MTK 硬件加速、EQoS 限速、mtwifi-cfg 无线管理
 - **DNS**：SmartDNS（国内/国外分流、双栈优选、大缓存，低延迟开箱配置）
-- **代理**：Nikki（Mihomo）
+- **出海**：Nikki（Mihomo）、honk
 - **远程管理**：Lucky（DDNS / 内网穿透）、Cloudflared 隧道
 - **文件与商店**：FileBrowser 文件管理、iStore 应用商店
 - **运维监控**：ttyd 网页终端、应用过滤、UPnP
