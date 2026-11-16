@@ -162,14 +162,27 @@ jobs:
           name: redmi-ax6000-512m-firmware
           path: ${{ env.FIRMWARE }}
 
+      - name: 计算发布版本号
+        id: version
+        if: steps.organize.outputs.status == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREFIX="v${REPO_BRANCH}."
+          ESCAPED=$(printf '%s' "$PREFIX" | sed 's/\./\\./g')
+          MAX=$(gh api "repos/${{ github.repository }}/tags?per_page=100" --jq '.[].name' | sed -n "s/^${ESCAPED}\([0-9][0-9]*\)$/\1/p" | sort -n | tail -n 1)
+          NEXT=$(( ${MAX:-0} + 1 ))
+          echo "tag=${PREFIX}${NEXT}" >> "$GITHUB_OUTPUT"
+          echo "本次发布版本号：${PREFIX}${NEXT}"
+
       - name: 发布到 Release
         uses: softprops/action-gh-release@v2
         if: steps.organize.outputs.status == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: firmware-${{ github.run_number }}
-          name: 红米AX6000固件 #${{ github.run_number }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Redmi AX6000 · 512MB ImmortalWrt固件 ${{ steps.version.outputs.tag }}
           body: 红米AX6000 512MB闪存版固件（stock 布局，闭源 WiFi 驱动，ImmortalWrt 25.12 / 内核 6.12）
           files: ${{ env.FIRMWARE }}/*
 
