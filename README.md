@@ -29,7 +29,7 @@
 1. **Fork** 本仓库到你的 GitHub 账号
 2. 进入 **Actions** → 选择「**编译红米AX6000固件**」→ **Run workflow**
 3. 等待编译完成（通常 1–2 小时，取决于包数量与 runner 状态）
-4. 从 **Release**（`firmware-*` 标签）或 **Artifacts**（`redmi-ax6000-512m-firmware`）下载固件
+4. 从 **Release**（`v25.12.*` 标签）或 **Artifacts**（`redmi-ax6000-512m-firmware`）下载固件
 5. 刷入：**从旧 24.10 固件升级必须走 U-Boot 按新布局刷入**（分区布局已变，不能 sysupgrade 保留配置）；同为本 25.12 线的后续版本可直接 sysupgrade
 
 > 刷机有风险，动手前请先备份原厂固件。
