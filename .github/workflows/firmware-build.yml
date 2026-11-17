@@ -191,7 +191,34 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Redmi AX6000 · 512MB ImmortalWrt固件 ${{ steps.version.outputs.tag }}
-          body: 红米AX6000 512MB闪存版固件（stock 布局，闭源 WiFi 驱动，ImmortalWrt 25.12 / 内核 6.12）
+          body: |
+            红米 AX6000（512MB 闪存、stock 布局、闭源 WiFi 驱动）· ImmortalWrt 25.12 / 内核 6.12
+
+            ## 刷机用哪两个文件
+
+            | 文件 | 用途 |
+            |---|---|
+            | `ax6000-stock-initramfs-factory.ubi` | **第一步**：在现行系统里刷入的临时系统 |
+            | `ax6000-stock-squashfs-sysupgrade.bin` | **第二步**：在临时系统里刷入的正式系统；同为本 25.12 线的后续升级也用它 |
+
+            ## 刷机步骤
+
+            跨布局首刷**不能保留配置**：刷前先在旧后台备份一份配置作人工对照，并抄下宽带账号与 WiFi 密码。
+
+            1. **刷入临时系统**：把 ax6000-stock-initramfs-factory.ubi 传到现行系统的 /tmp（scp 或 WinSCP），SSH 登录现行系统后执行 `mtd -r -e ubi write /tmp/ax6000-stock-initramfs-factory.ubi ubi`，路由器会自动重启进入临时系统。命令里的 ubi 是现行系统的分区名，不要改。
+            2. **刷入正式系统**：临时系统后台在 1.2.3.4（打不开再试 192.168.1.1），在「系统 → 备份/升级」上传 ax6000-stock-squashfs-sysupgrade.bin，**不要勾选保留配置**；也可以用 SSH 执行 `sysupgrade -n /tmp/ax6000-stock-squashfs-sysupgrade.bin`。
+            3. **验收**：重启完成后打开 http://1.2.3.4 ，后台与 SSH 密码、5G WiFi 都已预置，刷完直接可用。
+
+            若第一步后临时系统没有起来：断电按住 Reset 再上电约 10 秒，进 U-Boot 恢复页（电脑设静态 IP 192.168.1.100，打开 http://192.168.1.1）重刷 ax6000-stock-initramfs-factory.ubi；仍不行再走串口救砖（见仓库 atf_uboot_build）。
+
+            ## 其他文件（刷机用不到）
+
+            - `ax6000-stock-initramfs-kernel.bin`：内存启动的内核镜像，串口 / TFTP 调试用
+            - `mt798x-ram-*.bin`：内存启动 BL2，救砖场景用
+            - `*.manifest`：本包软件清单
+            - `config.buildinfo` / `feeds.buildinfo` / `version.buildinfo`：编译配置、软件源与版本记录
+            - `profiles.json`：设备描述；`sha256sums`：下载后核对文件完整性
+            - `profiles.json`：设备描述；`sha256sums`：下载后核对文件完整性
           files: ${{ env.FIRMWARE }}/*
 
       - name: 清理旧的 workflow 记录
