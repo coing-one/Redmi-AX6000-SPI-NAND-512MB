@@ -152,6 +152,14 @@ jobs:
         run: |
           cd openwrt/bin/targets/*/*
           rm -rf packages
+          # 简化文件名：去掉公共前缀，改为 ax6000-stock- 开头；校验文件里的名字同步改，profiles.json 改名后重算哈希
+          for f in immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-stock-*; do
+            [ -f "$f" ] && mv "$f" "ax6000-stock-${f#immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-stock-}"
+          done
+          [ -f immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-stock.manifest ] && mv immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-stock.manifest ax6000-stock.manifest
+          sed -i 's/immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-stock/ax6000-stock/g' sha256sums profiles.json
+          SUM=$(sha256sum profiles.json | cut -d' ' -f1)
+          sed -i "s/^[0-9a-f]\{64\} \*profiles.json$/$SUM *profiles.json/" sha256sums
           echo "FIRMWARE=$PWD" >> $GITHUB_ENV
           echo "status=success" >> $GITHUB_OUTPUT
 
