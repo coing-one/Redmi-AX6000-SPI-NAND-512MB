@@ -1,0 +1,230 @@
+name: 编译红米AX6000固件（单段UBI）
+
+on:
+  workflow_dispatch:
+
+env:
+  REPO_URL: https://github.com/chasey-dev/immortalwrt-mt798x-rebase
+  REPO_BRANCH: "25.12"
+  CONFIG_FILE: firmware_build/ax6000-single.config
+  DIY_SH: firmware_build/diy-single.sh
+  TZ: Asia/Shanghai
+
+concurrency:
+  group: firmware-build-single
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: 检出本仓库
+        uses: actions/checkout@v4
+
+      - name: 初始化编译环境
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache cmake cpio curl device-tree-compiler fastjar flex gawk gettext gcc-multilib g++-multilib git gperf haveged help2man intltool libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool clang llvm libbpf-dev libclang-dev lrzsz mkisofs msmtp ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+          sudo -E apt-get -qq autoremove --purge
+          sudo -E apt-get -qq clean
+          sudo timedatectl set-timezone "$TZ"
+          sudo mkdir -p /workdir
+          sudo chown $USER:$GROUPS /workdir
+
+      - name: 清理磁盘空间
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: false
+          dotnet: false
+          haskell: false
+          large-packages: false
+          swap-storage: false
+
+      - name: 下载固件源码
+        working-directory: /workdir
+        run: |
+          df -hT $PWD
+          git clone $REPO_URL -b $REPO_BRANCH openwrt --single-branch --filter=blob:none
+          ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+      - name: 应用自定义修改
+        run: |
+          chmod +x $DIY_SH
+          cd openwrt
+          $GITHUB_WORKSPACE/$DIY_SH
+
+      - name: 更新并安装 feeds
+        run: |
+          cd openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+
+      - name: 检出 honk 源码到 daeuniverse 源
+        uses: actions/checkout@v4
+        with:
+          repository: daeuniverse/honk
+          ref: v0.1.0-beta.6
+          fetch-depth: 0
+          path: honk-src
+
+      - name: 装入 honk 源码、预置配置与路由器侧 daeuniverse 软件源
+        run: |
+          mkdir -p openwrt/feeds/daeuniverse/honk/src
+          cp -a honk-src/. openwrt/feeds/daeuniverse/honk/src/
+          cp $GITHUB_WORKSPACE/firmware_build/honk/config.dae openwrt/feeds/daeuniverse/honk/files/config.dae
+          mkdir -p openwrt/package/base-files/files/etc/apk/keys openwrt/package/base-files/files/etc/apk/repositories.d
+          cp openwrt/feeds/daeuniverse/keys/public-key.pem openwrt/package/base-files/files/etc/apk/keys/daeuniverse.pem
+          cat > openwrt/package/base-files/files/etc/apk/repositories.d/daeuniverse.list << 'EOF'
+          @daeuniverse https://openwrt.daeuniverse.org/25.12/packages/aarch64_cortex-a53/packages.adb
+          EOF
+
+      - name: 读取 honk 钉版 Rust 工具链版本
+        id: honk_toolchain
+        working-directory: honk-src
+        run: |
+          echo "stable=$(grep -oP '^channel\s*=\s*\"\K[^\"]+' rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+          echo "ebpf=$(grep -oP '^channel\s*=\s*\"\K[^\"]+' crates/honk-ebpf/rust-toolchain.toml)" >> "$GITHUB_OUTPUT"
+
+      - name: 安装 Rust 稳定工具链（honk 主程序）
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ steps.honk_toolchain.outputs.stable }}
+          target: aarch64-unknown-linux-musl
+
+      - name: 安装 Rust nightly 工具链（honk eBPF 对象）
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ steps.honk_toolchain.outputs.ebpf }}
+          components: rust-src, llvm-tools
+
+      - name: 安装钉版 bpf-linker
+        working-directory: honk-src
+        run: |
+          source .github/ci/pins.env
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/bpf-linker.tar.zst" \
+            "https://github.com/aya-rs/bpf-linker/releases/download/v$BPF_LINKER_VERSION/bpf-linker-x86_64-unknown-linux-musl.tar.zst"
+          echo "$BPF_LINKER_SHA256  $RUNNER_TEMP/bpf-linker.tar.zst" | sha256sum -c -
+          zstd -dc "$RUNNER_TEMP/bpf-linker.tar.zst" | tar -xf - -C "${CARGO_HOME:-$HOME/.cargo}/bin"
+          bpf-linker --version
+
+      - name: 修复 rust host 构建（保留 vendor/*.orig）
+        run: |
+          cd openwrt
+          python3 $GITHUB_WORKSPACE/firmware_build/fix-rust-orig.py
+
+      - name: 载入编译配置
+        run: |
+          [ -e $CONFIG_FILE ] && cp $CONFIG_FILE openwrt/.config
+          cd openwrt
+          make defconfig
+
+      - name: 校验解析结果（机型与关键包）
+        run: |
+          cd openwrt
+          grep -q '^CONFIG_TARGET_PROFILE="DEVICE_xiaomi_redmi-router-ax6000-single"$' .config || { echo 'ERROR: 机型解析错误，停工'; exit 1; }
+          for p in honk luci-app-honk luci-app-nikki luci-app-smartdns luci-app-mtwifi-cfg luci-app-store luci-theme-mono luci-app-lucky luci-theme-vantage; do
+            grep -q "^CONFIG_PACKAGE_${p}=y$" .config || { echo "ERROR: 关键包缺失 $p，停工"; exit 1; }
+          done
+
+      - name: 下载软件包
+        run: |
+          cd openwrt
+          make download -j$(nproc)
+          find dl -size -1024c -exec ls -l {} \;
+          find dl -size -1024c -exec rm -f {} \;
+
+      - name: 编译固件
+        id: compile
+        run: |
+          cd openwrt
+          make -j$(nproc) || make -j1 || make -j1 V=s
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: 整理固件文件
+        id: organize
+        if: steps.compile.outputs.status == 'success'
+        run: |
+          cd openwrt/bin/targets/*/*
+          rm -rf packages
+          # 简化文件名：去掉公共前缀，改为 ax6000-single- 开头；校验文件里的名字同步改，profiles.json 改名后重算哈希
+          for f in immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-single-*; do
+            [ -f "$f" ] && mv "$f" "ax6000-single-${f#immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-single-}"
+          done
+          [ -f immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-single.manifest ] && mv immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-single.manifest ax6000-single.manifest
+          sed -i 's/immortalwrt-mediatek-filogic-xiaomi_redmi-router-ax6000-single/ax6000-single/g' sha256sums profiles.json
+          SUM=$(sha256sum profiles.json | cut -d' ' -f1)
+          sed -i "s/^[0-9a-f]\{64\} \*profiles.json$/$SUM *profiles.json/" sha256sums
+          echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+          echo "status=success" >> $GITHUB_OUTPUT
+
+      - name: 上传固件到 Artifacts
+        uses: actions/upload-artifact@v4
+        if: steps.organize.outputs.status == 'success'
+        with:
+          name: redmi-ax6000-512m-firmware-single
+          path: ${{ env.FIRMWARE }}
+
+      - name: 计算发布版本号
+        id: version
+        if: steps.organize.outputs.status == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREFIX="v${REPO_BRANCH}s."
+          ESCAPED=$(printf '%s' "$PREFIX" | sed 's/\./\\./g')
+          MAX=$(gh api "repos/${{ github.repository }}/tags?per_page=100" --jq '.[].name' | sed -n "s/^${ESCAPED}\([0-9][0-9]*\)$/\1/p" | sort -n | tail -n 1)
+          NEXT=$(( ${MAX:-0} + 1 ))
+          echo "tag=${PREFIX}${NEXT}" >> "$GITHUB_OUTPUT"
+          echo "本次发布版本号：${PREFIX}${NEXT}"
+
+      - name: 发布到 Release
+        uses: softprops/action-gh-release@v2
+        if: steps.organize.outputs.status == 'success'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Redmi AX6000 · 512MB ImmortalWrt固件（单段UBI）${{ steps.version.outputs.tag }}
+          body: |
+            红米 AX6000（512MB 闪存、单段 UBI 布局、闭源 WiFi 驱动）· ImmortalWrt 25.12 / 内核 6.12
+            本版与 stock 版的区别只有分区布局：单个 490MiB 的 ubi 分区（内核与文件系统同区），配套 bl-mt798x U-Boot 的 512rom-490m 布局。两版不可混刷、不可互相升级。
+
+            ## 刷机用哪两个文件
+
+            | 文件 | 用途 |
+            |---|---|
+            | `ax6000-single-initramfs-factory.ubi` | **第一步**：在 U-Boot 恢复页刷入的临时系统 |
+            | `ax6000-single-squashfs-sysupgrade.bin` | **第二步**：在临时系统里刷入的正式系统；本单段线的后续升级也用它 |
+
+            ## 刷机步骤
+
+            首刷**不能保留配置**：刷前先在旧后台备份一份配置作人工对照，并抄下宽带账号与 WiFi 密码。
+
+            1. **刷入临时系统**：电脑设静态 IP 192.168.31.100/24、网线接 LAN 口；路由器断电，按住 Reset 再上电约 15 秒松开，浏览器打开 http://192.168.31.1 进 U-Boot 恢复页；分区布局选 `512rom-490m`，上传 ax6000-single-initramfs-factory.ubi 刷入，等路由器亮白灯重启（页面转圈不用理，以白灯为准）。
+            2. **刷入正式系统**：电脑 IP 改回自动获取，打开临时系统后台 http://1.2.3.4 ，在「系统 → 备份/升级」上传 ax6000-single-squashfs-sysupgrade.bin，**不要勾选保留配置**；也可以用 SSH 执行 `sysupgrade -n /tmp/ax6000-single-squashfs-sysupgrade.bin`。
+            3. **验收**：重启完成后打开 http://1.2.3.4 ：后台地址 1.2.3.4、主机名 ax6000、root 密码已预置（见仓库 firmware_build/diy.sh）；5G WiFi 名为 G、密码已预置，2.4G 默认关闭。刷完直接可用。
+
+            若第一步后临时系统没有起来，按顺序回退（刷机只写 ubi 区，FIP 与恢复页不受影响，入口一直在）：
+
+            1. **重刷临时系统**：重新进 U-Boot 恢复页 http://192.168.31.1 ，分区布局保持 `512rom-490m`，重新上传 ax6000-single-initramfs-factory.ubi 刷入，等白灯重启后再试。
+            2. **退回现行系统**：仍起不来时，同样进恢复页，分区布局保持 `512rom-490m`，刷入 XVega 救活包 `2025.06.28-1409-hanwckf-xiaomi_redmi-router-ax6000-spi_nand-512m-squashfs-factory.bin`（SHA256：`c7b869c80d66f8041cd5d5c1bcbe81c5eebf9fd94710210e3a683741477f22fc`），即回到刷机前的现行系统（后台 http://192.168.1.1 ，root 空密码）。
+            3. 串口救砖需串口线，本机未备，不作兜底；两步都走完仍异常就先停手，不要改刷其他布局或来历不明的文件。
+
+            ## 其他文件（刷机用不到）
+
+            - `ax6000-single-initramfs-kernel.bin`：内存启动的内核镜像，串口 / TFTP 调试用
+            - `*.manifest`：本包软件清单
+            - `config.buildinfo` / `feeds.buildinfo` / `version.buildinfo`：编译配置、软件源与版本记录
+            - `profiles.json`：设备描述；`sha256sums`：下载后核对文件完整性
+          files: ${{ env.FIRMWARE }}/*
+
+      - name: 清理旧的 workflow 记录
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          retain_days: 0
+          keep_minimum_runs: 3

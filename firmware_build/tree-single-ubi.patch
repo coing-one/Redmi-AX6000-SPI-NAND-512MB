@@ -1,0 +1,147 @@
+diff --git a/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface b/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
+index d497d60..8a142fc 100644
+--- a/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
++++ b/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
+@@ -37,6 +37,7 @@ set_preinit_iface() {
+ 	xiaomi,mi-router-wr30u-ubootmod|\
+ 	xiaomi,mi-router-wr30u-mtkuboot|\
+ 	xiaomi,redmi-router-ax6000-stock|\
++	xiaomi,redmi-router-ax6000-single|\
+ 	xiaomi,redmi-router-ax6000-mtkuboot|\
+ 	xiaomi,redmi-router-ax6000-ubootmod)
+ 		ip link set eth0 up
+diff --git a/target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-single.dts b/target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-single.dts
+new file mode 100644
+index 0000000..4089f82
+--- /dev/null
++++ b/target/linux/mediatek/dts/mt7986a-xiaomi-redmi-router-ax6000-single.dts
+@@ -0,0 +1,34 @@
++// SPDX-License-Identifier: (GPL-2.0 OR MIT)
++
++/dts-v1/;
++#include "mt7986a-xiaomi-redmi-router-ax6000.dtsi"
++
++/ {
++	model = "Xiaomi Redmi Router AX6000 (single UBI layout)";
++	compatible = "xiaomi,redmi-router-ax6000-single", "mediatek,mt7986a";
++};
++
++&spi_nand_flash {
++	mediatek,nmbm;
++	mediatek,bmt-max-ratio = <1>;
++	mediatek,bmt-max-reserved-blocks = <64>;
++};
++
++&partitions {
++	partition@580000 {
++		label = "crash";
++		reg = <0x580000 0x40000>;
++		read-only;
++	};
++
++	partition@5c0000 {
++		label = "crash_log";
++		reg = <0x5c0000 0x40000>;
++		read-only;
++	};
++
++	partition@600000 {
++		label = "ubi";
++		reg = <0x600000 0x1ea00000>;
++	};
++};
+diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds b/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds
+index 3ff116a..91f8f00 100644
+--- a/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds
++++ b/target/linux/mediatek/filogic/base-files/etc/board.d/01_leds
+@@ -392,6 +392,7 @@ xiaomi,mi-router-wr30u-ubootmod)
+ 	ucidef_set_led_netdev "wan" "wan" "blue:wan" "wan" "link tx rx"
+ 	;;
+ xiaomi,redmi-router-ax6000-stock|\
++xiaomi,redmi-router-ax6000-single|\
+ xiaomi,redmi-router-ax6000-mtkuboot|\
+ xiaomi,redmi-router-ax6000-ubootmod)
+ 	ucidef_set_led_netdev "wan" "wan" "rgb:network" "wan" "link"
+diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
+index 3be2728..acae1e9 100644
+--- a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
++++ b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
+@@ -262,6 +262,7 @@ mediatek_setup_interfaces()
+ 	xiaomi,mi-router-wr30u-ubootmod|\
+ 	xiaomi,mi-router-wr30u-mtkuboot|\
+ 	xiaomi,redmi-router-ax6000-stock|\
++	xiaomi,redmi-router-ax6000-single|\
+ 	xiaomi,redmi-router-ax6000-mtkuboot|\
+ 	xiaomi,redmi-router-ax6000-ubootmod)
+ 		ucidef_set_interfaces_lan_wan "lan2 lan3 lan4" wan
+@@ -400,6 +401,7 @@ mediatek_setup_macs()
+ 	xiaomi,mi-router-wr30u-ubootmod|\
+ 	xiaomi,mi-router-wr30u-mtkuboot|\
+ 	xiaomi,redmi-router-ax6000-stock|\
++	xiaomi,redmi-router-ax6000-single|\
+ 	xiaomi,redmi-router-ax6000-mtkuboot|\
+ 	xiaomi,redmi-router-ax6000-ubootmod)
+ 		wan_mac=$(mtd_get_mac_ascii Bdata ethaddr_wan)
+diff --git a/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh b/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
+index f3c5e64..f0418fa 100644
+--- a/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
++++ b/target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh
+@@ -347,6 +347,12 @@ platform_do_upgrade() {
+ 			;;
+ 		esac
+ 		;;
++	xiaomi,redmi-router-ax6000-single)
++		CI_UBIPART="ubi"
++		CI_KERNPART="kernel"
++		CI_ROOTPART="rootfs"
++		nand_do_upgrade "$1"
++		;;
+ 	xiaomi,mi-router-ax3000t|\
+ 	xiaomi,mi-router-wr30u-stock|\
+ 	xiaomi,redmi-router-ax6000-stock)
+diff --git a/target/linux/mediatek/image/filogic.mk b/target/linux/mediatek/image/filogic.mk
+index ae342c6..6e3332d 100644
+--- a/target/linux/mediatek/image/filogic.mk
++++ b/target/linux/mediatek/image/filogic.mk
+@@ -3859,6 +3859,27 @@ endif
+ endef
+ TARGET_DEVICES += xiaomi_redmi-router-ax6000-stock
+ 
++define Device/xiaomi_redmi-router-ax6000-single
++  DEVICE_VENDOR := Xiaomi
++  DEVICE_MODEL := Redmi Router AX6000
++  DEVICE_VARIANT := (single UBI layout)
++  DEVICE_DTS := mt7986a-xiaomi-redmi-router-ax6000-single
++  DEVICE_DTS_DIR := ../dts
++  DEVICE_PACKAGES := kmod-leds-ws2812b
++  UBINIZE_OPTS := -E 5
++  BLOCKSIZE := 128k
++  PAGESIZE := 2048
++  KERNEL_IN_UBI := 1
++ifeq ($(IB),)
++ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
++  ARTIFACTS := initramfs-factory.ubi
++  ARTIFACT/initramfs-factory.ubi := append-image-stage initramfs-kernel.bin | ubinize-kernel
++endif
++endif
++  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
++endef
++TARGET_DEVICES += xiaomi_redmi-router-ax6000-single
++
+ define Device/xiaomi_redmi-router-ax6000-ubootmod
+   DEVICE_VENDOR := Xiaomi
+   DEVICE_MODEL := Redmi Router AX6000
+diff --git a/package/boot/uboot-tools/uboot-envtools/files/mediatek_filogic b/package/boot/uboot-tools/uboot-envtools/files/mediatek_filogic
+index cb069efc7d..2f30bcb65b 100644
+--- a/package/boot/uboot-tools/uboot-envtools/files/mediatek_filogic
++++ b/package/boot/uboot-tools/uboot-envtools/files/mediatek_filogic
+@@ -190,7 +190,8 @@ xiaomi,mi-router-ax3000t-mtkuboot|\
+ xiaomi,mi-router-wr30u-stock|\
+ xiaomi,mi-router-wr30u-mtkuboot|\
+ xiaomi,redmi-router-ax6000-mtkuboot|\
+-xiaomi,redmi-router-ax6000-stock)
++xiaomi,redmi-router-ax6000-stock|\
++xiaomi,redmi-router-ax6000-single)
+ 	ubootenv_add_uci_config "/dev/mtd1" "0x0" "0x10000" "0x20000"
+ 	ubootenv_add_uci_sys_config "/dev/mtd2" "0x0" "0x10000" "0x20000"
+ 	;;
