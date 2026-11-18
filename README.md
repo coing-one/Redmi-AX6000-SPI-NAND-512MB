@@ -21,23 +21,35 @@
 | 底子 | ImmortalWrt 25.12（内核 6.12、apk 包管理），MTK 官方 feeds 闭源驱动 |
 | 闭源 WiFi 驱动 | MTK mt_wifi，信号与性能优于开源驱动 |
 | 单段 UBI 布局 | 单个 490MiB 的 ubi 分区（内核与文件系统同区），512MB 颗粒用满 |
-| 开箱预置 | Vantage 默认主题、后台 1.2.3.4、SmartDNS 双组分流与 Nikki 已调好，刷完即用 |
-| 云编译 | Actions 手动一键编译，发布版本号 `v25.12s.*` |
+| 开箱预置 | Vantage 默认主题、后台 1.2.3.4、Nikki 已调好；SmartDNS 双组配置已预置（默认关闭），刷完即用 |
+| 云编译 | Actions 手动一键编译，发布版本号 `v25.12s.*`（现行正式版 **v25.12s.3**，为首编全量版的后继版） |
 
-## 🚀 刷机方法（唯一正确路线）
+## 🚀 刷机总则
 
-刷机只用一个文件：**`ax6000-single-squashfs-sysupgrade.bin`**（从 [Release](https://github.com/coing-one/Redmi-AX6000-SPI-NAND-512MB/releases) 下载，`v25.12s.*` 标签）。
+刷机只用一个文件：**`ax6000-single-squashfs-sysupgrade.bin`**（从 [Release](https://github.com/coing-one/Redmi-AX6000-SPI-NAND-512MB/releases) 下载，现行正式版 **v25.12s.3**）。首次刷入与后续更新都用它，区别只在入口与是否保留配置。
+
+> ⚠️ **不要刷 initramfs-factory.ubi**：该形态的启动镜像总长超过 32MiB，在这类 U-Boot 上 bootm 阶段必然触发复位、系统永不启动（已实刷证伪）。本仓库的 Release 不再提供任何 initramfs 类文件，见到别处流传的同名文件也不要刷。
+
+## 📥 进入 U-Boot 恢复页
+
+1. 电脑用网线接路由器 **LAN 2–4 口**，电脑设静态 IP **192.168.31.100/24**。
+2. 路由器断电，**按住 Reset 再上电约 15 秒**松开。
+3. 浏览器打开 **http://192.168.31.1**，即 U-Boot 恢复页。
+
+实测细节：
+
+- 恢复模式下路由器**无指示灯是常态**，不要以灯判断是否进入成功，能打开 192.168.31.1 即已进入。
+- 在恢复页刷入文件后，**以白灯亮起为写完信号**；页面转圈不作数，等白灯再做下一步。
+
+## 🆕 首次刷入
+
+前提：机器已刷 hanwckf U-Boot，并已按上一节进入恢复页。
 
 首刷**不能保留配置**：刷前先在旧后台备份一份配置作人工对照，并抄下宽带账号与 WiFi 密码。
 
-1. 电脑用网线接路由器 **LAN 2–4 口**，电脑设静态 IP **192.168.31.100/24**。
-2. 路由器断电，**按住 Reset 再上电约 15 秒**松开，浏览器打开 **http://192.168.31.1** 进 U-Boot 恢复页。
-3. 分区布局选 **`512rom-490m`**，上传 `ax6000-single-squashfs-sysupgrade.bin` 刷入，**等路由器亮白灯**重启（页面转圈不用理，以白灯为准）。
-4. 电脑 IP 改回自动获取，打开 **http://1.2.3.4** 验收：后台地址 1.2.3.4、主机名 ax6000、root 密码已预置（见 `firmware_build/diy.sh`）；5G WiFi 名为 G、密码已预置，2.4G 默认关闭。刷完直接可用。
-
-本线后续升级同样用这个 sysupgrade 文件（恢复页或后台「系统 → 备份/升级」均可，升级可保留配置）。
-
-> ⚠️ **不要刷 initramfs-factory.ubi**：该形态的启动镜像总长超过 32MiB，在这类 U-Boot 上 bootm 阶段必然触发复位、系统永不启动（已实刷证伪）。本仓库的 Release 不再提供任何 initramfs 类文件，见到别处流传的同名文件也不要刷。
+1. 在恢复页把分区布局选为 **`512rom-490m`**。
+2. 上传 `ax6000-single-squashfs-sysupgrade.bin` 刷入，只刷这一个文件，等白灯亮起后路由器重启。
+3. 电脑 IP 改回自动获取，打开 **http://1.2.3.4** 验收：后台地址 1.2.3.4、主机名 ax6000、root 密码已预置（见 `firmware_build/diy.sh`）；5G WiFi 名为 G、密码已预置，2.4G 默认关闭。刷完直接可用。
 
 若刷后系统没有起来（刷机只写 ubi 区，FIP 与恢复页不受影响，入口一直在）：
 
@@ -45,10 +57,22 @@
 2. 仍起不来时，同样进恢复页、同一布局，刷入 XVega 救活包 `2025.06.28-1409-hanwckf-xiaomi_redmi-router-ax6000-spi_nand-512m-squashfs-factory.bin`（SHA256：`c7b869c80d66f8041cd5d5c1bcbe81c5eebf9fd94710210e3a683741477f22fc`），回到刷机前的现行系统（后台 http://192.168.1.1 ，root 空密码）。
 3. 两步走完仍异常就先停手，不要改刷其他布局或来历不明的文件。
 
+## 🔄 后续更新
+
+已经在运行本固件时，更新到新版仍用同一个 sysupgrade 文件，两条路任选：
+
+- **后台更新（可保留配置）**：打开 LuCI 后台 →「系统 → 备份/升级」，上传新版 `ax6000-single-squashfs-sysupgrade.bin`，勾选保留配置刷入。
+- **恢复页更新（不保留配置）**：按「进入 U-Boot 恢复页」一节进恢复页，布局保持 `512rom-490m`，刷入同一文件；效果等同首刷，配置回到预置状态。
+
+更新后验收：后台能正常打开、系统版本与目标 Release 一致；走后台更新的，原有配置应保留完好。
+
+永远只用 sysupgrade 形态：任何版本都不要刷 initramfs 类文件（理由见刷机总则的警告）。
+
+
 ## 🧩 内置功能
 
 - **性能与无线**：TurboACC MTK 硬件加速、EQoS 限速、mtwifi-cfg 无线管理
-- **DNS**：SmartDNS 双上游组分流——国内组（阿里 223.5.5.5、腾讯 119.29.29.29 及两家 DoH，只服务国内域名）与国外组（Nikki 核心 DNS 127.0.0.1:1053，进默认组承接其余查询）；国内域名清单随固件出厂（来源 [felixonmars/dnsmasq-china-list](https://github.com/felixonmars/dnsmasq-china-list)，2026-11-18 版，运行时每周自动刷新）。Nikki 停掉时国内组仍可独立解析，不会全网断 DNS
+- **DNS**：现行解析由 Nikki（Mihomo）接管。SmartDNS 双组配置随固件预置但**默认关闭**——国内组（阿里 223.5.5.5、腾讯 119.29.29.29 及两家 DoH，绑定国内域名清单）与国外组（Nikki 核心 DNS 127.0.0.1:1053）都已配好，国内域名清单随固件出厂（来源 [felixonmars/dnsmasq-china-list](https://github.com/felixonmars/dnsmasq-china-list)，2026-11-18 版，运行时每周自动刷新）；日后在 LuCI 里启用 SmartDNS 即按此分流工作，不启用不影响 Nikki 解析
 - **出海**：Nikki（Mihomo）、honk。Nikki 的 GeoX 数据库（MMDB / GeoSite / GeoIP / ASN）下载源已预置为 fastly.jsdelivr.net 镜像并开启每日自动更新——默认 GitHub 源在国内线路上会超时、导致核心因缺数据库反复启动失败，刷完无需再手动改
 - **远程管理**：Lucky（DDNS / 内网穿透）、Cloudflared 隧道
 - **文件与商店**：FileBrowser 文件管理、iStore 应用商店
