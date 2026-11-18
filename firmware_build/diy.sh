@@ -132,7 +132,8 @@ cat > package/base-files/files/etc/uci-defaults/97-smartdns-nikki << 'EOF'
 # 97-smartdns-nikki：SmartDNS + Nikki 开箱配置
 
 # ============ SmartDNS 主配置 ============
-uci set smartdns.@smartdns[0].enabled='1'
+# 启用状态口径（2026-11-18 用户评估定格）：SmartDNS 默认保持关闭，与现网一致；双组配置照常预置，启用与否由用户在 LuCI 决定
+uci set smartdns.@smartdns[0].enabled='0'
 uci set smartdns.@smartdns[0].server_name='AX6000'
 uci set smartdns.@smartdns[0].port='5353'
 uci set smartdns.@smartdns[0].auto_set_dnsmasq='1'
