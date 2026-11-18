@@ -36,6 +36,28 @@ group {
     proxy {
         policy: score
     }
+    # 地区组（照 Nikki 主要口径）：订阅节点名全部以地区词开头，关键词可准确圈选；
+    # Nikki 侧地区组是 fallback 有序转移，honk 无此策略，score 为其等效最优
+    hk {
+        filter: name(keyword: '香港')
+        policy: score
+    }
+    kr {
+        filter: name(keyword: '韩国')
+        policy: score
+    }
+    vn {
+        filter: name(keyword: '越南')
+        policy: score
+    }
+    us {
+        filter: name(keyword: '美国')
+        policy: score
+    }
+    au {
+        filter: name(keyword: '澳大利亚')
+        policy: score
+    }
 }
 
 dns {
@@ -79,6 +101,11 @@ routing {
     dip(geoip: private) -> direct(must)
     dip(geoip: cn) -> direct
     domain(geosite: geolocation-cn) -> direct
+    # 广告拦截，对应 Nikki 广告组 REJECT 口径
+    domain(geosite: category-ads-all) -> block
+    # AI 服务锁美国组（用户现行 AI 出口口径）
+    domain(geosite: openai) -> us
+    domain(geosite: anthropic) -> us
     # 油管 QUIC 与现行 Nikki 口径一致：UDP 443 拦下逼回 TCP（链路上有 UDP 断点）
     domain(geosite: youtube) && l4proto(udp) && dport(443) -> block
     domain(geosite: google) -> proxy
