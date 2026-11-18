@@ -265,14 +265,3 @@ exit 0
 EOF
 chmod +x package/base-files/files/etc/uci-defaults/97-smartdns-nikki
 
-# SmartDNS 启用兜底（现网实测：s.1 首启后 enabled 曾被翻回 0、服务未起；
-# 固件内无任何脚本写此值，疑 LuCI 保存动作所致，机制未定，故在首启脚本序列的最后再确认一次）
-# uci-defaults 按文件名排序执行，zz- 前缀排在最后
-cat > package/base-files/files/etc/uci-defaults/zz-smartdns-enable << 'EOF'
-#!/bin/sh
-uci set smartdns.@smartdns[0].enabled='1'
-uci commit smartdns
-/etc/init.d/smartdns enable
-exit 0
-EOF
-chmod +x package/base-files/files/etc/uci-defaults/zz-smartdns-enable
