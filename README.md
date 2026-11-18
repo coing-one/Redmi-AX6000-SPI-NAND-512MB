@@ -53,7 +53,7 @@
 - **远程管理**：Lucky（DDNS / 内网穿透）、Cloudflared 隧道
 - **文件与商店**：FileBrowser 文件管理、iStore 应用商店
 - **运维监控**：ttyd 网页终端、应用过滤、UPnP
-- **主题（6 套）**：[Vantage](https://github.com/anothaDev/luci-theme-vantage)（默认）、Proton2025、Argon、[7Dollar](https://github.com/itsmaiGe/luci-theme-7dollar)、[Carbon](https://github.com/mrjoechen/luci-theme-carbon)、[Mono](https://github.com/wizcheu/luci-theme-mono)
+- **主题（5 套）**：[Vantage](https://github.com/anothaDev/luci-theme-vantage)（默认）、Proton2025、[7Dollar](https://github.com/itsmaiGe/luci-theme-7dollar)、[Carbon](https://github.com/mrjoechen/luci-theme-carbon)、[Mono](https://github.com/wizcheu/luci-theme-mono)
 
 软件包在 [`firmware_build/ax6000-single.config`](firmware_build/ax6000-single.config) 中按需增减；预置在 [`firmware_build/diy.sh`](firmware_build/diy.sh)。
 
