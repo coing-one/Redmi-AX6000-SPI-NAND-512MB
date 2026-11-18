@@ -121,6 +121,11 @@ exit 0
 EOF
 chmod +x package/base-files/files/etc/uci-defaults/99-custom-distfeeds
 
+# 国内域名清单随固件出厂：来源 felixonmars/dnsmasq-china-list 的 accelerated-domains.china.conf，
+# 2026-11-18 拉取并按 SmartDNS domain-set 格式转换（共 109331 条）；运行时由更新脚本每周刷新
+mkdir -p package/base-files/files/etc/smartdns/domain-set
+cp "$(cd "$(dirname "$0")" && pwd)/files/etc/smartdns/domain-set/china.txt" package/base-files/files/etc/smartdns/domain-set/china.txt
+
 # SmartDNS + Nikki 开箱配置（现行定格）
 cat > package/base-files/files/etc/uci-defaults/97-smartdns-nikki << 'EOF'
 #!/bin/sh
@@ -144,8 +149,10 @@ uci set smartdns.@smartdns[0].rr_ttl_max='86400'
 uci set smartdns.@smartdns[0].force_aaaa_soa='0'
 uci commit smartdns
 
-# 上游服务器：国内组（UDP + DoT，并发测速取最快），全部移出默认组
+# 上游服务器分两组：国内组只服务国内域名清单命中的查询；国外组（Nikki 核心 DNS）进默认组，承接其余全部查询
+# 硬要求：Nikki 停掉或核心异常时，国内组仍能独立解析，不再出现核心一死全网没 DNS 的局面
 add_srv() {
+	# $1 名称 $2 地址 $3 端口 $4 类型 $5 服务器组 $6 是否移出默认组（1/0）
 	local s
 	s=$(uci add smartdns server)
 	uci set smartdns."$s".enabled='1'
@@ -154,83 +161,20 @@ add_srv() {
 	[ -n "$3" ] && uci set smartdns."$s".port="$3"
 	uci set smartdns."$s".type="$4"
 	uci set smartdns."$s".server_group="$5"
-	uci set smartdns."$s".exclude_default_group='1'
-	[ -n "$6" ] && uci set smartdns."$s".tls_host_verify="$6"
+	uci set smartdns."$s".exclude_default_group="$6"
 }
-add_srv 'Tencent' '119.29.29.29' '' 'udp' 'domestic'
-add_srv 'AliDNS' '223.5.5.5' '' 'udp' 'domestic'
-add_srv 'Baidu' '180.76.76.76' '' 'udp' 'domestic'
-add_srv '114DNS' '114.114.114.114' '' 'udp' 'domestic'
-add_srv 'AliDNS-DoT' '223.5.5.5' '853' 'tls' 'domestic' 'dot.alidns.com'
-add_srv 'Tencent-DoT' '120.53.53.53' '853' 'tls' 'domestic' 'dot.pub'
-# 国外组：转发给 Nikki/Mihomo 的 fake-ip DNS（127.0.0.1:1053），即时返回不走外网
-add_srv 'Nikki' '127.0.0.1' '1053' 'udp' 'foreign'
+# 国内组：阿里/腾讯 UDP + 两家 DoH，全部移出默认组
+add_srv 'AliDNS' '223.5.5.5' '' 'udp' 'domestic' '1'
+add_srv 'Tencent' '119.29.29.29' '' 'udp' 'domestic' '1'
+add_srv 'Tencent-DoH' 'https://doh.pub/dns-query' '' 'https' 'domestic' '1'
+add_srv 'AliDNS-DoH' 'https://dns.alidns.com/dns-query' '' 'https' 'domestic' '1'
+# 国外组：Nikki/Mihomo 的 fake-ip DNS（127.0.0.1:1053），留在默认组，即时返回不走外网
+add_srv 'Nikki' '127.0.0.1' '1053' 'udp' 'foreign' '0'
 uci commit smartdns
 
-# 国内域名表 -> domestic 组；其它域名默认走 foreign 组（fake-ip）
-mkdir -p /etc/smartdns/domain-set
+# 国内域名表 -> domestic 组；其它域名走默认组（即国外组 Nikki）
+# 清单随固件出厂在 /etc/smartdns/domain-set/china.txt（来源见 diy.sh），此处只挂规则；每周自动刷新见下方更新脚本
 LIST=/etc/smartdns/domain-set/china.txt
-if [ ! -f "$LIST" ]; then
-cat > "$LIST" << 'XEOF'
-baidu.com
-qq.com
-taobao.com
-tmall.com
-jd.com
-163.com
-126.com
-sina.com.cn
-sohu.com
-weibo.com
-bilibili.com
-douyin.com
-kuaishou.com
-zhihu.com
-csdn.net
-alipay.com
-tenpay.com
-12306.cn
-10086.cn
-10010.com
-189.cn
-icbc.com.cn
-ccb.com
-boc.cn
-abchina.com
-bankcomm.com
-cmbchina.com
-amap.com
-meituan.com
-ele.me
-pinduoduo.com
-xiaomi.com
-huawei.com
-oppo.com
-vivo.com
-lenovo.com.cn
-suning.com
-vip.com
-youku.com
-iqiyi.com
-douyu.com
-huya.com
-58.com
-zhaopin.com
-51job.com
-xueqiu.com
-eastmoney.com
-gov.cn
-edu.cn
-ctrip.com
-qunar.com
-xiaohongshu.com
-dewu.com
-smzdm.com
-v2ex.com
-jianshu.com
-douban.com
-XEOF
-fi
 r=$(uci add smartdns domain-rule-list)
 uci set smartdns."$r".enabled='1'
 uci set smartdns."$r".name='china'
@@ -271,6 +215,15 @@ uci set nikki.config.enabled='1'
 # 低延迟调优：单次 RTT 测速 + TCP 并发拨号抢最快
 uci set nikki.mixin.unify_delay='1'
 uci set nikki.mixin.tcp_concurrent='1'
+# GeoX 数据库下载源预置（实证）：默认 GitHub 源在国内线路超时、核心会因缺 MMDB 反复 fatal；
+# 换 fastly.jsdelivr.net 镜像，格式锁定 MMDB，自动更新间隔 24 小时
+uci set nikki.mixin.geoip_format='mmdb'
+uci set nikki.mixin.geosite_url='https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat'
+uci set nikki.mixin.geoip_mmdb_url='https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/country.mmdb'
+uci set nikki.mixin.geoip_dat_url='https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.dat'
+uci set nikki.mixin.geoip_asn_url='https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/GeoLite2-ASN.mmdb'
+uci set nikki.mixin.geox_auto_update='1'
+uci set nikki.mixin.geox_update_interval='24'
 # 叠加规则：国内直连（prepend 到订阅自带规则之前，优先级最高）
 uci set nikki.mixin.rule='1'
 r=$(uci add nikki rule)
