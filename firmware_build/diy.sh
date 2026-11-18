@@ -225,6 +225,8 @@ uci set nikki.mixin.geoip_dat_url='https://fastly.jsdelivr.net/gh/MetaCubeX/meta
 uci set nikki.mixin.geoip_asn_url='https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/GeoLite2-ASN.mmdb'
 uci set nikki.mixin.geox_auto_update='1'
 uci set nikki.mixin.geox_update_interval='24'
+# 核心日志定时清理周期（现网定格）：默认每 5 分钟过频，改每 4 小时；scheduled_clear 与 1MB 上限维持默认不变
+uci set nikki.log.scheduled_clear_cron='0 */4 * * *'
 # 叠加规则：国内直连（prepend 到订阅自带规则之前，优先级最高）
 uci set nikki.mixin.rule='1'
 r=$(uci add nikki rule)
