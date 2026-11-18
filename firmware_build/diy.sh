@@ -256,10 +256,22 @@ if [ -z "$(uci -q get network.wan6.proto)" ]; then
 	uci set network.wan6.reqprefix='auto'
 	uci commit network
 fi
-# LAN IPv6 中继（上级路由/房东网关下游场景开箱即用；若改作主路由拨号，把这三项改回 server 并配 PD）
+# IPv6 中继（上级路由/房东网关下游场景开箱即用；若改作主路由拨号，把 lan/wan6 的 relay 改回 server 并配 PD）
+# odhcpd 中继按逻辑接口绑定（官方 README + OpenWrt wiki 中继范例）：lan 与 wan6 两段都要有，wan6 段为 master；
+# 原预置只有 lan 三项 relay、缺 wan6 段，客户端拿不到全局 v6（现网实测证伪；补齐后手机实测拿到 240e 地址）
 uci set dhcp.lan.ra='relay'
 uci set dhcp.lan.dhcpv6='relay'
 uci set dhcp.lan.ndp='relay'
+uci set dhcp.wan6='dhcp'
+uci set dhcp.wan6.interface='wan6'
+uci set dhcp.wan6.ignore='1'
+uci set dhcp.wan6.master='1'
+uci set dhcp.wan6.ra='relay'
+uci set dhcp.wan6.dhcpv6='relay'
+uci set dhcp.wan6.ndp='relay'
+# wan（v4）段只 ignore，不要 master
+uci set dhcp.wan.ignore='1'
+uci -q delete dhcp.wan.master
 uci commit dhcp
 
 exit 0
