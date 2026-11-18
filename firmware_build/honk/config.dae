@@ -79,6 +79,8 @@ routing {
     dip(geoip: private) -> direct(must)
     dip(geoip: cn) -> direct
     domain(geosite: geolocation-cn) -> direct
+    # 油管 QUIC 与现行 Nikki 口径一致：UDP 443 拦下逼回 TCP（链路上有 UDP 断点）
+    domain(geosite: youtube) && l4proto(udp) && dport(443) -> block
     domain(geosite: google) -> proxy
     fallback: proxy
 }
