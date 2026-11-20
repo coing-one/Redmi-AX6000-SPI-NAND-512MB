@@ -211,6 +211,11 @@ grep -q 'update-china-list' /etc/crontabs/root 2>/dev/null || echo '17 4 * * 0 /
 # 首次启动后台重试拉取（等 WAN 就绪，最多约 10 分钟）
 nohup sh -c 'for i in $(seq 1 12); do sleep 50; /etc/smartdns/update-china-list.sh && break; done' >/dev/null 2>&1 &
 
+# dnsmasq 的「DNS 重定向」默认关闭（2026-11-20 现网定格同步）：开着会与 Nikki 的 DNS 劫持
+# 抢答 LAN 侧 53 端口，造成解析污染与分流错乱；现网已手动关闭，预置在此对齐，刷机不回退
+uci set dhcp.@dnsmasq[0].dns_redirect='0'
+uci commit dhcp
+
 # ============ Nikki（Mihomo）开箱 ============
 uci set nikki.config.enabled='1'
 # 低延迟调优：单次 RTT 测速 + TCP 并发拨号抢最快
