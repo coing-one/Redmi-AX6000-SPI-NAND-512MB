@@ -39,7 +39,7 @@ uci set luci.main.mediaurlbase='/luci-static/vantage'
 uci commit luci
 EOF
 
-# 默认后台地址：LAN 改 1.2.3.4/24（首启 uci-defaults 生效，DHCP 池自动跟随网段）；主机名设 ax6000（ax6000.lan / 配 umdns 的 ax6000.local 均可达）
+# 默认后台地址：LAN 改 10.10.10.10/24（首启 uci-defaults 生效，DHCP 池自动跟随网段）；主机名设 ax6000（ax6000.lan / 配 umdns 的 ax6000.local 均可达）
 # 预置无线配置（照用户现行机同驱动配置原样落盘：5G 名 G + 密码已定，2.4G 保持关闭）
 mkdir -p package/base-files/files/etc/config
 cat > package/base-files/files/etc/config/wireless << 'XEOF'
@@ -97,7 +97,7 @@ XEOF
 
 cat > package/base-files/files/etc/uci-defaults/98-lan-ip << 'EOF'
 #!/bin/sh
-uci set network.lan.ipaddr='1.2.3.4'
+uci set network.lan.ipaddr='10.10.10.10'
 uci set network.lan.netmask='255.255.255.0'
 uci commit network
 uci set system.@system[0].hostname='ax6000'
